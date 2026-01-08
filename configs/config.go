@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sync"
+	"time"
 )
 
 const (
@@ -39,8 +40,13 @@ type Listener struct {
 
 type configuration struct {
 	Server struct {
-		Bind string
-		Port int
+		Bind              string
+		Port              int
+		ReadTimeout       time.Duration `yaml:"readTimeout"`
+		ReadHeaderTimeout time.Duration `yaml:"readHeaderTimeout"`
+		WriteTimeout      time.Duration `yaml:"writeTimeout"`
+		IdleTimeout       time.Duration `yaml:"idleTimeout"`
+		MaxHeaderBytes    int           `yaml:"maxHeaderBytes"`
 	}
 	Db  orm.Config
 	Log struct {

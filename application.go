@@ -31,11 +31,13 @@ type application struct {
 	AppName        string
 	Version        string
 	BuildTime      string
+	startTime      time.Time
 	listeners      []configs.Listener
 	middlewares    []gin.HandlerFunc
 	staticHandlers []gin.HandlerFunc
-	custom         func(engine *gin.Engine)
-	startTime      time.Time
+	before         func()
+	engine         func(engine *gin.Engine)
+	after          func()
 }
 
 func New(appName string, version string, buildTime string) *application {
@@ -50,7 +52,7 @@ func New(appName string, version string, buildTime string) *application {
 	return app
 }
 
-func (application *application) AddListener(listeners ...configs.Listener) {
+func (application *application) AddConfigListener(listeners ...configs.Listener) {
 	application.listeners = append(application.listeners, listeners...)
 }
 
@@ -62,17 +64,35 @@ func (application *application) AddStaticHandler(handlers ...gin.HandlerFunc) {
 	application.staticHandlers = append(application.staticHandlers, handlers...)
 }
 
-func (application *application) Custom(custom func(engine *gin.Engine)) {
-	application.custom = custom
+func (application *application) Before(fn func()) {
+	application.before = fn
+}
+
+func (application *application) Engine(engine func(engine *gin.Engine)) {
+	application.engine = engine
+}
+
+func (application *application) After(fn func()) {
+	application.after = fn
 }
 
 func (application *application) Serve() {
+	application.listenConfig()
+	application.initLogger()
 	appName := application.AppName
-	engine := application.newEngine()
 	logger.Info("The %s version is %s and the build time is %s", appName, application.Version, application.BuildTime)
-	custom := application.custom
-	if custom != nil {
-		custom(engine)
+	before := application.before
+	if before != nil {
+		before()
+	}
+	engine := application.newEngine()
+	engineFunc := application.engine
+	if engineFunc != nil {
+		engineFunc(engine)
+	}
+	after := application.after
+	if after != nil {
+		after()
 	}
 	conf := configs.Config.Server
 	bind := conf.Bind
@@ -80,7 +100,11 @@ func (application *application) Serve() {
 	server := &http.Server{
 		Addr:              fmt.Sprintf("%s:%d", bind, port),
 		Handler:           engine,
-		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       conf.ReadTimeout,
+		ReadHeaderTimeout: conf.ReadHeaderTimeout,
+		WriteTimeout:      conf.WriteTimeout,
+		IdleTimeout:       conf.IdleTimeout,
+		MaxHeaderBytes:    conf.MaxHeaderBytes,
 	}
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -112,13 +136,15 @@ func (application *application) initLogger() {
 	logger.SetLevel(level)
 }
 
-func (application *application) newEngine() *gin.Engine {
-	gin.SetMode(gin.ReleaseMode)
+func (application *application) listenConfig() {
 	for _, listener := range application.listeners {
 		configs.AddListener(listener.Config, listener.Reload)
 	}
 	configs.ListenConfig()
-	application.initLogger()
+}
+
+func (application *application) newEngine() *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
 	engine := gin.New()
 	for _, handler := range application.staticHandlers {
 		engine.Use(handler)
