@@ -9,7 +9,7 @@ import (
 
 type Page struct {
 	OrderBy  string `form:"orderBy"`
-	PageNum  int    `form:"pageNo"`
+	PageNum  int    `form:"pageNum"`
 	PageSize int    `form:"pageSize"`
 }
 
