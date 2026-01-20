@@ -27,6 +27,7 @@ func Jwt(manager jwt.Manager) gin.HandlerFunc {
 			ctx.Abort()
 			return
 		}
+		ctx.Set("claims", claims)
 		ctx.Next()
 	}
 }
