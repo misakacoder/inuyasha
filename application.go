@@ -38,6 +38,7 @@ type application struct {
 	before         func()
 	engine         func(engine *gin.Engine)
 	after          func()
+	once           sync.Once
 }
 
 func New(appName string, version string, buildTime string) *application {
@@ -77,55 +78,57 @@ func (application *application) After(fn func()) {
 }
 
 func (application *application) Serve() {
-	application.listenConfig()
-	application.initLogger()
-	appName := application.AppName
-	logger.Info("The %s version is %s and the build time is %s", appName, application.Version, application.BuildTime)
-	before := application.before
-	if before != nil {
-		before()
-	}
-	engine := application.newEngine()
-	engineFunc := application.engine
-	if engineFunc != nil {
-		engineFunc(engine)
-	}
-	after := application.after
-	if after != nil {
-		after()
-	}
-	conf := configs.Config.Server
-	bind := conf.Bind
-	port := conf.Port
-	server := &http.Server{
-		Addr:              fmt.Sprintf("%s:%d", bind, port),
-		Handler:           engine,
-		ReadTimeout:       conf.ReadTimeout,
-		ReadHeaderTimeout: conf.ReadHeaderTimeout,
-		WriteTimeout:      conf.WriteTimeout,
-		IdleTimeout:       conf.IdleTimeout,
-		MaxHeaderBytes:    conf.MaxHeaderBytes,
-	}
-	go func() {
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			logger.Panic("Startup error: %s", err.Error())
+	application.once.Do(func() {
+		application.listenConfig()
+		application.initLogger()
+		appName := application.AppName
+		logger.Info("The %s version is %s and the build time is %s", appName, application.Version, application.BuildTime)
+		before := application.before
+		if before != nil {
+			before()
 		}
-	}()
-	banner := strings.Builder{}
-	startupTime := time.Since(application.startTime)
-	banner.WriteString(fmt.Sprintf("Started %s in %.2f seconds...", appName, startupTime.Seconds()))
-	addresses := cond.Ternary(bind == consts.AnyAddress, net.GetLocalAddr(), []string{bind})
-	for _, address := range addresses {
-		banner.WriteString(fmt.Sprintf("\n - Listen on: http://%s:%d", address, port))
-	}
-	logger.Info(banner.String())
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	defer cancel()
-	<-ctx.Done()
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("Shutdown error: %s", err.Error())
-	}
-	logger.Info("Shutdown...")
+		engine := application.newEngine()
+		engineFunc := application.engine
+		if engineFunc != nil {
+			engineFunc(engine)
+		}
+		after := application.after
+		if after != nil {
+			after()
+		}
+		conf := configs.Config.Server
+		bind := conf.Bind
+		port := conf.Port
+		server := &http.Server{
+			Addr:              fmt.Sprintf("%s:%d", bind, port),
+			Handler:           engine,
+			ReadTimeout:       conf.ReadTimeout,
+			ReadHeaderTimeout: conf.ReadHeaderTimeout,
+			WriteTimeout:      conf.WriteTimeout,
+			IdleTimeout:       conf.IdleTimeout,
+			MaxHeaderBytes:    conf.MaxHeaderBytes,
+		}
+		go func() {
+			if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				logger.Panic("Startup error: %s", err.Error())
+			}
+		}()
+		banner := strings.Builder{}
+		startupTime := time.Since(application.startTime)
+		banner.WriteString(fmt.Sprintf("Started %s in %.2f seconds...", appName, startupTime.Seconds()))
+		addresses := cond.Ternary(bind == consts.AnyAddress, net.GetLocalAddr(), []string{bind})
+		for _, address := range addresses {
+			banner.WriteString(fmt.Sprintf("\n - Listen on: http://%s:%d", address, port))
+		}
+		logger.Info(banner.String())
+		ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer cancel()
+		<-ctx.Done()
+		if err := server.Shutdown(ctx); err != nil {
+			logger.Error("Shutdown error: %s", err.Error())
+		}
+		logger.Info("Shutdown...")
+	})
 }
 
 func (application *application) initLogger() {
