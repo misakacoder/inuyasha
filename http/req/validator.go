@@ -51,9 +51,17 @@ func datepicker(mustSameYear bool) func(validator.FieldLevel) bool {
 		fieldName := getFieldName(fieldLevel.FieldName(), fieldLevel.Parent().Type())
 		switch dateTime := field.(type) {
 		case []types.DateTime:
-			validateDatepickerTime(fieldName, dateTime[0].Time(), dateTime[1].Time(), mustSameYear)
+			if len(dateTime) == 2 {
+				validateDatepickerTime(fieldName, dateTime[0].Time(), dateTime[1].Time(), mustSameYear)
+			} else {
+				panic(resp.ParameterError.Msg(fmt.Sprintf("%s必须是2个值", fieldName)))
+			}
 		case []*types.DateTime:
-			validateDatepickerTime(fieldName, dateTime[0].Time(), dateTime[1].Time(), mustSameYear)
+			if len(dateTime) == 2 {
+				validateDatepickerTime(fieldName, dateTime[0].Time(), dateTime[1].Time(), mustSameYear)
+			} else {
+				panic(resp.ParameterError.Msg(fmt.Sprintf("%s必须是2个值", fieldName)))
+			}
 		default:
 		}
 		return true

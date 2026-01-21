@@ -18,18 +18,12 @@ func (dateTime *DateTime) Scan(v any) error {
 	return nil
 }
 
-func (dateTime *DateTime) Value() (driver.Value, error) {
-	if dateTime != nil {
-		return dateTime.Time(), nil
-	}
-	return nil, nil
+func (dateTime DateTime) Value() (driver.Value, error) {
+	return dateTime.Time(), nil
 }
 
-func (dateTime *DateTime) MarshalJSON() ([]byte, error) {
-	if dateTime != nil {
-		return json.Marshal(dateTime.Time().Format(time.DateTime))
-	}
-	return nil, nil
+func (dateTime DateTime) MarshalJSON() ([]byte, error) {
+	return json.Marshal(dateTime.Time().Format(time.DateTime))
 }
 
 func (dateTime *DateTime) UnmarshalJSON(data []byte) error {
@@ -46,25 +40,18 @@ func (dateTime *DateTime) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-func (dateTime *DateTime) Time() time.Time {
-	if dateTime != nil {
-		return time.Time(*dateTime)
-	}
-	return time.Time{}
+func (dateTime DateTime) Time() time.Time {
+	return time.Time(dateTime)
 }
 
-func (dateTime *DateTime) String() string {
-	if dateTime != nil {
-		return dateTime.Time().Format(time.DateTime)
-	}
-	return ""
+func (dateTime DateTime) String() string {
+	return dateTime.Time().Format(time.DateTime)
 }
 
-func DateTimeNow() *DateTime {
+func DateTimeNow() DateTime {
 	return DateTimeFrom(time.Now())
 }
 
-func DateTimeFrom(tm time.Time) *DateTime {
-	dateTime := DateTime(tm)
-	return &dateTime
+func DateTimeFrom(tm time.Time) DateTime {
+	return DateTime(tm)
 }
