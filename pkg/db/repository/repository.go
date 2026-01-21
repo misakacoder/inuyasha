@@ -117,6 +117,6 @@ func (repository *Repository[M]) Transaction(fn func(*Repository[M]) error) erro
 	return err
 }
 
-func NewRepository[M any](db *gorm.DB) *Repository[M] {
+func New[M any](db *gorm.DB) *Repository[M] {
 	return &Repository[M]{DB: db}
 }
