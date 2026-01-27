@@ -12,7 +12,7 @@ type Claims struct {
 }
 
 type Manager interface {
-	Create(subject string, extension map[string]any) (string, *Claims)
+	Create(subject string, payload map[string]any) (string, *Claims)
 	Parse(tokenString string) (*Claims, error)
 }
 
